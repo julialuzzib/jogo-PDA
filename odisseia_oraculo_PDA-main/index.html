@@ -1,0 +1,1792 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Odisseia do Oráculo — Autômato com Pilha (PDA)</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Outfit (Geométrica minimalista), Cinzel (Títulos místicos) e JetBrains Mono (Símbolos e Pilha) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --sky-deep: #211832;
+      --sky-wine: #4a2545;
+      --sky-coral: #d86c70;
+      --sky-peach: #f5a673;
+      --moon-glow: #fff0e5;
+      --glass-bg: rgba(33, 24, 50, 0.58);
+      --glass-border: rgba(255, 240, 229, 0.16);
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: linear-gradient(180deg, #191228 0%, #2d1b3d 32%, #6d3354 65%, #d86c70 88%, #f5a673 100%);
+      color: #fff0e5;
+      min-height: 100vh;
+      overflow-x: hidden;
+      margin: 0;
+    }
+
+    .font-display {
+      font-family: 'Cinzel', serif;
+      letter-spacing: 0.08em;
+    }
+
+    .font-mono-code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Painéis Glassmorphism estilo Alto's Odyssey */
+    .glass-panel {
+      background: var(--glass-bg);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--glass-border);
+      box-shadow: 0 18px 40px rgba(15, 10, 26, 0.45);
+    }
+
+    .glass-subpanel {
+      background: rgba(22, 15, 36, 0.52);
+      border: 1px solid rgba(255, 240, 229, 0.1);
+    }
+
+    /* Animação do Céu e Balões ao Fundo */
+    @keyframes floatBalloon {
+      0%, 100% { transform: translateY(0px) translateX(0px); }
+      50% { transform: translateY(-14px) translateX(6px); }
+    }
+
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.25; transform: scale(0.9); }
+      50% { opacity: 0.95; transform: scale(1.15); }
+    }
+
+    .balloon-float-1 { animation: floatBalloon 9s ease-in-out infinite; }
+    .balloon-float-2 { animation: floatBalloon 12s ease-in-out infinite 2s; }
+    .balloon-float-3 { animation: floatBalloon 10.5s ease-in-out infinite 4s; }
+
+    /* Animações da Pilha (LIFO Stack) */
+    @keyframes pushBlock {
+      0% { opacity: 0; transform: translateY(-28px) scale(0.88); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .stack-item-enter {
+      animation: pushBlock 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    /* Pulso no nó ativo do PDA */
+    @keyframes statePulse {
+      0%, 100% { filter: drop-shadow(0 0 8px rgba(245, 166, 115, 0.85)); }
+      50% { filter: drop-shadow(0 0 18px rgba(255, 240, 229, 1)); }
+    }
+
+    .node-active {
+      animation: statePulse 1.8s infinite ease-in-out;
+    }
+
+    /* Botões estilizados */
+    .btn-alto {
+      transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .btn-alto:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(216, 108, 112, 0.35);
+    }
+    .btn-alto:active:not(:disabled) {
+      transform: translateY(0px);
+    }
+
+    /* Scrollbar discreta */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(25, 18, 40, 0.4);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(245, 166, 115, 0.4);
+      border-radius: 999px;
+    }
+
+    input[type="text"] {
+      user-select: text;
+    }
+  </style>
+</head>
+<body class="relative selection:bg-[#d86c70] selection:text-white">
+
+  <!-- CENÁRIO DE FUNDO CREPUSCULAR (ALTO'S ODYSSEY VIBES) -->
+  <div id="backdrop-scene" class="fixed inset-0 pointer-events-none overflow-hidden z-0">
+    <!-- Lua / Sol Poente -->
+    <div class="absolute top-14 left-1/2 -translate-x-1/2 w-56 h-56 md:w-72 md:h-72 rounded-full bg-[#fff0e5] opacity-90 blur-[1px]"
+         style="box-shadow: 0 0 90px 30px rgba(255, 240, 229, 0.45), 0 0 160px 70px rgba(245, 166, 115, 0.35);"></div>
+
+    <!-- Container de Estrelas Geradas via JS -->
+    <div id="stars-layer" class="absolute inset-0"></div>
+
+    <!-- Balões de Ar Quente em Silhueta -->
+    <svg class="absolute top-20 left-[14%] w-10 h-14 text-[#2b1836] opacity-75 balloon-float-1" viewBox="0 0 40 56" fill="currentColor">
+      <path d="M20 2C10 2 3 9.5 3 19c0 8.5 7.5 16.5 12 22h10c4.5-5.5 12-13.5 12-22C37 9.5 30 2 20 2z"/>
+      <rect x="16" y="44" width="8" height="6" rx="1.5"/>
+      <line x1="16" y1="41" x2="17" y2="44" stroke="currentColor" stroke-width="1.2"/>
+      <line x1="24" y1="41" x2="23" y2="44" stroke="currentColor" stroke-width="1.2"/>
+    </svg>
+
+    <svg class="absolute top-28 right-[16%] w-8 h-12 text-[#361d42] opacity-65 balloon-float-2" viewBox="0 0 40 56" fill="currentColor">
+      <path d="M20 2C10 2 3 9.5 3 19c0 8.5 7.5 16.5 12 22h10c4.5-5.5 12-13.5 12-22C37 9.5 30 2 20 2z"/>
+      <rect x="16" y="44" width="8" height="6" rx="1.5"/>
+    </svg>
+
+    <svg class="absolute top-12 right-[32%] w-6 h-9 text-[#2b1836] opacity-50 balloon-float-3" viewBox="0 0 40 56" fill="currentColor">
+      <path d="M20 2C10 2 3 9.5 3 19c0 8.5 7.5 16.5 12 22h10c4.5-5.5 12-13.5 12-22C37 9.5 30 2 20 2z"/>
+      <rect x="16" y="44" width="8" height="6" rx="1.5"/>
+    </svg>
+
+    <!-- Dunas e Ruínas Distantes em Camadas -->
+    <svg class="absolute bottom-0 left-0 w-full h-64 md:h-80" viewBox="0 0 1440 320" preserveAspectRatio="none">
+      <!-- Camada 1: Montanhas distantes -->
+      <path fill="#4a2545" fill-opacity="0.65" d="M0,192L120,176C240,160,480,128,720,138.7C960,149,1200,203,1320,229.3L1440,256L1440,320L0,320Z"></path>
+      <!-- Camada 2: Dunas intermediárias -->
+      <path fill="#311938" fill-opacity="0.85" d="M0,224L160,240C320,256,640,288,960,266.7C1280,245,1360,192,1440,176L1440,320L0,320Z"></path>
+      <!-- Camada 3: Primeiro plano escuro -->
+      <path fill="#1b1128" d="M0,272L240,256C480,240,960,240,1200,256L1440,272L1440,320L0,320Z"></path>
+    </svg>
+  </div>
+
+  <!-- CONTAINER PRINCIPAL DA APLICAÇÃO -->
+  <div class="relative z-10 max-w-[1440px] mx-auto px-3 sm:px-6 py-4 flex flex-col gap-4">
+
+    <!-- CABEÇALHO SUPERIOR -->
+    <header class="glass-panel rounded-2xl px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <!-- Ícone Minimalista do Oráculo -->
+        <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-[#f5a673] to-[#d86c70] flex items-center justify-center shadow-lg text-[#211832]">
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <polygon points="12 2 19 9 12 22 5 9 12 2"></polygon>
+            <circle cx="12" cy="10" r="2.2" fill="currentColor"></circle>
+          </svg>
+        </div>
+        <div>
+          <h1 class="font-display text-lg sm:text-2xl font-bold tracking-wider text-[#fff0e5] leading-tight">
+            ODISSEIA DO ORÁCULO
+          </h1>
+          <p class="text-xs sm:text-sm text-[#f5a673]/90 font-light">
+            Trabalho 02 • Autômato com Pilha (PDA) • 7 Estados &amp; Lógica LIFO
+          </p>
+        </div>
+      </div>
+
+      <!-- Controles de Áudio, Guia JFLAP e Reset Geral -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <button id="btn-audio" onclick="toggleAudio()"
+                class="btn-alto px-3.5 py-2 rounded-xl glass-subpanel hover:bg-white/10 text-xs sm:text-sm font-medium flex items-center gap-2 border border-[#f5a673]/30">
+          <span id="audio-icon">🔇</span>
+          <span id="audio-label" class="hidden sm:inline">Som Ambiente: Off</span>
+        </button>
+
+        <button onclick="openModal('modal-guide')"
+                class="btn-alto px-3.5 py-2 rounded-xl bg-[#4a2545]/80 hover:bg-[#5e2f58] text-[#fff0e5] text-xs sm:text-sm font-medium flex items-center gap-2 border border-[#fff0e5]/20">
+          <span>📜</span>
+          <span>Guia &amp; Diagrama JFLAP</span>
+        </button>
+
+        <button onclick="resetAll()"
+                class="btn-alto px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#d86c70] to-[#f5a673] text-[#211832] font-semibold text-xs sm:text-sm flex items-center gap-1.5 shadow-md">
+          <span>↺</span>
+          <span>Reiniciar</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ÁREA PRINCIPAL: GRID RESPONSIVO (ESQUERDA: MAPA + ROTEIRO | DIREITA: GRAFO PDA + PILHA) -->
+    <main class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+
+      <!-- COLUNA ESQUERDA (7 COLUNAS): CENÁRIO INTERATIVO WASD + SIMULADOR DE ROTEIRO -->
+      <section class="lg:col-span-7 flex flex-col gap-4">
+
+        <!-- 1. PALCO VISUAL DO JOGO (CANVAS INTERATIVO + CONTROLES WASD) -->
+        <div class="glass-panel rounded-2xl p-4 flex flex-col gap-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-[#f5a673] animate-ping"></span>
+              <h2 class="text-sm sm:text-base font-semibold tracking-wide text-[#fff0e5]">
+                Travessia do Templo (Exploração WASD ou Simulação)
+              </h2>
+            </div>
+            <span id="phase-indicator" class="px-2.5 py-1 rounded-full bg-amber-400/15 border border-amber-200/30 text-amber-100 text-[11px] font-semibold">Fase 1/3</span>
+
+            <!-- Legenda Compacta dos Símbolos -->
+            <div class="flex flex-wrap items-center gap-1.5 text-[11px] font-mono-code">
+              <span class="px-2 py-0.5 rounded-md bg-amber-500/20 border border-amber-300/30 text-amber-200" title="Empilha A">
+                <b>*</b> Cristal (+A)
+              </span>
+              <span class="px-2 py-0.5 rounded-md bg-cyan-500/20 border border-cyan-300/30 text-cyan-200" title="Empilha X">
+                <b>a</b> Chave (+X)
+              </span>
+              <span class="px-2 py-0.5 rounded-md bg-rose-500/20 border border-rose-300/30 text-rose-200" title="Desempilha A">
+                <b>s</b> Poção / Barreira (-A)
+              </span>
+              <span class="px-2 py-0.5 rounded-md bg-purple-500/20 border border-purple-300/30 text-purple-200" title="Desempilha X">
+                <b>b</b> Redemoinho / Arco (-X)
+              </span>
+              <span class="px-2 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-300/30 text-emerald-200" title="Exige Z0">
+                <b id="goal-symbol">c</b> <span id="goal-name">Portal circular (Z0)</span>
+              </span>
+            </div>
+          </div>
+
+          <!-- Canvas do Mundo do Jogo -->
+          <div class="relative w-full rounded-xl overflow-hidden border border-[#fff0e5]/15 bg-[#1b1128]/80 shadow-inner">
+            <canvas id="gameCanvas" class="w-full block"></canvas>
+
+            <!-- Dica de interação no canto inferior esquerdo -->
+            <div class="hidden sm:flex absolute bottom-3 left-3 items-center gap-2 bg-[#211832]/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-[#fff0e5]/15 text-xs text-[#fff0e5]/80">
+              <span>Use <kbd class="px-1.5 py-0.5 bg-white/15 rounded text-[#f5a673] font-mono-code">W A S D</kbd> ou Setas para caminhar e coletar/abrir elementos.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. PAINEL DE ROTEIRO (FITA DE ENTRADA + 4 EXEMPLOS OBRIGATÓRIOS) -->
+        <div class="glass-panel rounded-2xl p-4 flex flex-col gap-3.5">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 class="text-sm sm:text-base font-semibold text-[#fff0e5]">
+                Fita de Roteiro &amp; Simulador de Sequências
+              </h3>
+              <p class="text-xs text-[#fff0e5]/70">
+                Movimentos no mapa preenchem a fita automaticamente, ou digite/escolha um roteiro abaixo.
+              </p>
+            </div>
+
+            <!-- Controle de Velocidade -->
+            <div class="flex items-center gap-2 text-xs glass-subpanel px-2.5 py-1.5 rounded-xl">
+              <span class="text-[#fff0e5]/70">Velocidade:</span>
+              <select id="sim-speed" class="bg-transparent text-[#f5a673] font-mono-code font-semibold focus:outline-none cursor-pointer">
+                <option value="850" class="bg-[#211832]">Lenta (0.85s)</option>
+                <option value="500" selected class="bg-[#211832]">Normal (0.5s)</option>
+                <option value="220" class="bg-[#211832]">Rápida (0.2s)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Input do Roteiro + Botões Executar / Passo / Limpar -->
+          <div class="flex flex-col sm:flex-row gap-2">
+            <div class="relative flex-1">
+              <input id="tape-input" type="text" value="*sabc" maxlength="32"
+                placeholder="Digite símbolos: *, a, s, b, c (ex: *sabc)"
+                     oninput="sanitizeTapeInput(this)"
+                     class="w-full font-mono-code text-base sm:text-lg tracking-[0.2em] px-4 py-2.5 rounded-xl bg-[#160f24]/80 border border-[#f5a673]/40 text-[#fff0e5] focus:outline-none focus:border-[#f5a673]" />
+              <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-mono-code text-[#fff0e5]/45">
+                <span id="tape-alphabet">Σ = {*,a,s,b,c}</span>
+              </span>
+            </div>
+
+            <div class="flex gap-2">
+              <button id="btn-run" onclick="runScriptSimulation()"
+                      class="btn-alto flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#f5a673] to-[#d86c70] text-[#211832] font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5">
+                <span>▶</span>
+                <span>Processar Roteiro</span>
+              </button>
+              <button id="btn-step" onclick="stepScriptSimulation()"
+                      class="btn-alto px-3.5 py-2.5 rounded-xl glass-subpanel hover:bg-white/10 text-[#fff0e5] font-medium text-xs sm:text-sm border border-[#fff0e5]/20"
+                      title="Executar um símbolo por vez">
+                ⏭ Passo
+              </button>
+            </div>
+          </div>
+
+          <!-- Visualização da Fita de Caracteres (Tape Cells) -->
+          <div class="glass-subpanel rounded-xl p-2.5 flex flex-col gap-1.5">
+            <div class="flex justify-between items-center text-[11px] text-[#fff0e5]/60 font-mono-code">
+              <span>FITA DE ENTRADA EM TEMPO REAL</span>
+              <span id="tape-counter">0 / 0 símbolos lidos</span>
+            </div>
+            <div id="tape-visual" class="flex items-center gap-1.5 overflow-x-auto py-1 min-h-[42px]">
+              <!-- Células da fita renderizadas via JS -->
+            </div>
+          </div>
+
+          <!-- 4 SITUAÇÕES / EXEMPLOS PRÉ-CONFIGURADOS NA INTERFACE (OBRIGATÓRIO) -->
+          <details class="pt-1">
+            <summary class="btn-alto cursor-pointer list-none text-xs font-semibold uppercase tracking-wider text-[#f5a673] flex items-center gap-2">
+              <span aria-hidden="true">▸</span> DICAS • 4 situações de teste do PDA
+            </summary>
+            <div id="phase-hints" class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2"></div>
+          </details>
+        </div>
+      </section>
+
+      <!-- COLUNA DIREITA (5 COLUNAS): INSPETOR EM TEMPO REAL DO PDA (ESTADO, GRAFO E PILHA) -->
+      <section class="lg:col-span-5 flex flex-col gap-4">
+
+        <!-- 1. STATUS / VEREDITO E TELEMETRIA EM TEMPO REAL (OBRIGATÓRIO) -->
+        <div class="glass-panel rounded-2xl p-4 flex flex-col gap-3">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs uppercase tracking-wider font-semibold text-[#f5a673]">
+              Telemetria do Autômato (Tempo Real)
+            </span>
+            <!-- Badge ACEITA / REJEITADA / EM PROCESSAMENTO -->
+            <span id="status-badge"
+                  class="px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase bg-amber-500/20 text-amber-200 border border-amber-400/40">
+              ● AGUARDANDO / EM CURSO
+            </span>
+          </div>
+
+          <!-- Cards de Estado Atual, Símbolo Processado e Topo da Pilha -->
+          <div class="grid grid-cols-3 gap-2 text-center">
+            <div class="glass-subpanel rounded-xl p-2.5">
+              <div class="text-[10px] uppercase tracking-wider text-[#fff0e5]/60">Estado Atual</div>
+              <div id="telemetry-state" class="font-mono-code text-xl font-bold text-[#f5a673] mt-0.5">q0</div>
+              <div id="telemetry-state-name" class="text-[10px] text-[#fff0e5]/75 truncate">Átrio Inicial</div>
+            </div>
+
+            <div class="glass-subpanel rounded-xl p-2.5">
+              <div class="text-[10px] uppercase tracking-wider text-[#fff0e5]/60">Símbolo Lido</div>
+              <div id="telemetry-symbol" class="font-mono-code text-xl font-bold text-[#fff0e5] mt-0.5">—</div>
+              <div id="telemetry-action" class="text-[10px] text-[#fff0e5]/75 truncate">Início</div>
+            </div>
+
+            <div class="glass-subpanel rounded-xl p-2.5">
+              <div class="text-[10px] uppercase tracking-wider text-[#fff0e5]/60">Pilha (Topo→Base)</div>
+              <div id="telemetry-stack-str" class="font-mono-code text-base font-bold text-cyan-300 mt-1 truncate">Z0</div>
+              <div class="text-[10px] text-[#fff0e5]/75">Topo: <span id="telemetry-top" class="font-mono-code font-bold text-white">Z0</span></div>
+            </div>
+          </div>
+
+          <!-- Caixa de Log / Explicação da Transição Atual -->
+          <div id="transition-log" class="glass-subpanel rounded-xl px-3.5 py-2.5 text-xs text-[#fff0e5]/90 border-l-4 border-[#f5a673] leading-relaxed">
+            Autômato inicializado em <b>q0</b> com fundo de pilha <b>Z0</b>. Mova o personagem ou inicie um roteiro.
+          </div>
+        </div>
+
+        <!-- 2. DIAGRAMA DE ESTADOS DO PDA (SVG INTERATIVO) + TUBO DA PILHA LIFO -->
+        <div class="glass-panel rounded-2xl p-4 flex flex-col gap-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-[#fff0e5]">
+              Grafo de Estados (q0 → q6) &amp; Pilha LIFO
+            </h3>
+            <span id="graph-phase-label" class="text-[11px] font-mono-code text-[#f5a673]">7 Estados • F = {q6}</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-stretch">
+            <!-- Grafo SVG dos 7 estados (8 colunas) -->
+            <div class="sm:col-span-8 glass-subpanel rounded-xl p-2 flex flex-col justify-between relative overflow-hidden">
+              <svg id="pda-graph" viewBox="0 0 380 270" class="w-full h-auto">
+                <defs>
+                  <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 0 1 L 10 5 L 0 9 z" fill="rgba(255,240,229,0.55)" />
+                  </marker>
+                  <marker id="arrow-active" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                    <path d="M 0 1 L 10 5 L 0 9 z" fill="#f5a673" />
+                  </marker>
+                </defs>
+
+                <!-- ARESTAS DO PDA -->
+                <!-- Seta inicial -> q0 -->
+                <line x1="8" y1="55" x2="32" y2="55" stroke="#f5a673" stroke-width="2" marker-end="url(#arrow-active)" />
+
+                <!-- q0 -> q1 (*, Z0 / AZ0) -->
+                <path id="edge-q0-q1" d="M 68 55 L 138 55" stroke="rgba(255,240,229,0.35)" stroke-width="1.8" fill="none" marker-end="url(#arrow)" />
+                <text id="label-edge-q0-q1" x="103" y="47" text-anchor="middle" fill="#f5a673" font-size="9" font-family="JetBrains Mono">*,Z0;AZ0</text>
+
+                <!-- Self-loop q1 (*,A;AA | a,A;XA | a,X;XX) -->
+                <path id="edge-q1-q1" d="M 148 37 C 135 8, 185 8, 172 37" stroke="rgba(255,240,229,0.35)" stroke-width="1.8" fill="none" marker-end="url(#arrow)" />
+                <text id="label-edge-q1-q1" x="160" y="13" text-anchor="middle" fill="#ffd29d" font-size="7.6" font-family="JetBrains Mono">*,A;AA | a,A;XA | a,X;XX</text>
+
+                <!-- q1 -> q2 (s, A / λ) -->
+                <path id="edge-q1-q2" d="M 178 55 L 262 55" stroke="rgba(255,240,229,0.35)" stroke-width="1.8" fill="none" marker-end="url(#arrow)" />
+                <text id="label-edge-q1-q2" x="220" y="47" text-anchor="middle" fill="#fda4af" font-size="9" font-family="JetBrains Mono">s,A;λ</text>
+
+                <!-- q1 -> q3 (b, X / λ) diagonal -->
+                <path id="edge-q1-q3" d="M 168 72 L 210 132" stroke="rgba(255,240,229,0.35)" stroke-width="1.8" fill="none" marker-end="url(#arrow)" />
+                <text id="label-edge-q1-q3" x="172" y="110" text-anchor="middle" fill="#d8b4fe" font-size="8.5" font-family="JetBrains Mono">b,X;λ</text>
+
+                <!-- Self-loop q2 (s,A;λ) -->
+                <path id="edge-q2-q2" d="M 270 37 C 258 8, 308 8, 294 37" stroke="rgba(255,240,229,0.35)" stroke-width="1.8" fill="none" marker-end="url(#arrow)" />
+                <text id="label-edge-q2-q2" x="284" y="13" text-anchor="middle" fill="#fda4af" font-size="8.5" font-family="JetBrains Mono">s,A;λ</text>
+
+                <!-- q2 -> q3 (a,Z0/A;X | b,X;λ) -->
+                <path id="edge-q2-q3" d="M 272 72 L 232 132" stroke="rgba(255,240,229,0.35)" stroke-width="1.8" fill="none" marker-end="url(#arrow)" />
+                <text id="label-edge-q2-q3" x="285" y="108" text-anchor="middle" fill="#67e8f9" font-size="7.5" font-family="JetBrains Mono">a,Z0/A;XZ0/XA | b,X;λ</text>
+
+                <!-- q3 -> q4 (b, X / λ) -->
+                <path id="edge-q3-q4" d="M 202 150 L 128 150" stroke="rgba(255,240,229,0.35)" stroke-width="1.8" fill="none" marker-end="url(#arrow)" />
+                <text id="label-edge-q3-q4" x="165" y="142" text-anchor="middle" fill="#d8b4fe" font-size="9" font-family="JetBrains Mono">b,X;λ</text>
+
+                <!-- Self-loop q4 (b,X;λ | s,A;λ) -->
+                <path id="edge-q4-q4" d="M 92 135 C 72 108, 128 108, 114 134" stroke="rgba(255,240,229,0.35)" stroke-width="1.8" fill="none" marker-end="url(#arrow)" />
+                <text id="label-edge-q4-q4" x="95" y="110" text-anchor="middle" fill="#fda4af" font-size="8.2" font-family="JetBrains Mono">b,X;λ | s,A;λ</text>
+
+                <!-- q4 -> q5 (λ, Z0 / Z0) -->
+                <path id="edge-q4-q5" d="M 110 168 L 110 214" stroke="rgba(255,240,229,0.35)" stroke-width="1.8" stroke-dasharray="3,2" fill="none" marker-end="url(#arrow)" />
+                <text id="label-edge-q4-q5" x="72" y="196" text-anchor="middle" fill="#fde68a" font-size="8.5" font-family="JetBrains Mono">λ,Z0;Z0</text>
+
+                <!-- q5 -> q6 (c, Z0 / Z0) -->
+                <path id="edge-q5-q6" d="M 128 232 L 246 232" stroke="rgba(255,240,229,0.35)" stroke-width="1.8" fill="none" marker-end="url(#arrow)" />
+                <text id="label-edge-q5-q6" x="187" y="224" text-anchor="middle" fill="#6ee7b7" font-size="9" font-family="JetBrains Mono">c,Z0;Z0</text>
+
+                <!-- NÓS DOS ESTADOS (q0 a q6) -->
+                <!-- q0 -->
+                <g id="node-q0" class="transition-all">
+                  <circle cx="50" cy="55" r="17" fill="#2d1b3d" stroke="#f5a673" stroke-width="2.5" />
+                  <text x="50" y="59" text-anchor="middle" fill="#fff0e5" font-size="11" font-weight="bold" font-family="JetBrains Mono">q0</text>
+                </g>
+
+                <!-- q1 -->
+                <g id="node-q1" class="transition-all">
+                  <circle cx="160" cy="55" r="17" fill="#2d1b3d" stroke="rgba(255,240,229,0.45)" stroke-width="2" />
+                  <text x="160" y="59" text-anchor="middle" fill="#fff0e5" font-size="11" font-weight="bold" font-family="JetBrains Mono">q1</text>
+                </g>
+
+                <!-- q2 -->
+                <g id="node-q2" class="transition-all">
+                  <circle cx="280" cy="55" r="17" fill="#2d1b3d" stroke="rgba(255,240,229,0.45)" stroke-width="2" />
+                  <text x="280" y="59" text-anchor="middle" fill="#fff0e5" font-size="11" font-weight="bold" font-family="JetBrains Mono">q2</text>
+                </g>
+
+                <!-- q3 -->
+                <g id="node-q3" class="transition-all">
+                  <circle cx="220" cy="150" r="17" fill="#2d1b3d" stroke="rgba(255,240,229,0.45)" stroke-width="2" />
+                  <text x="220" y="154" text-anchor="middle" fill="#fff0e5" font-size="11" font-weight="bold" font-family="JetBrains Mono">q3</text>
+                </g>
+
+                <!-- q4 -->
+                <g id="node-q4" class="transition-all">
+                  <circle cx="110" cy="150" r="17" fill="#2d1b3d" stroke="rgba(255,240,229,0.45)" stroke-width="2" />
+                  <text x="110" y="154" text-anchor="middle" fill="#fff0e5" font-size="11" font-weight="bold" font-family="JetBrains Mono">q4</text>
+                </g>
+
+                <!-- q5 -->
+                <g id="node-q5" class="transition-all">
+                  <circle cx="110" cy="232" r="17" fill="#2d1b3d" stroke="rgba(255,240,229,0.45)" stroke-width="2" />
+                  <text x="110" y="236" text-anchor="middle" fill="#fff0e5" font-size="11" font-weight="bold" font-family="JetBrains Mono">q5</text>
+                </g>
+
+                <!-- q6 (ESTADO FINAL - DUPLO CÍRCULO) -->
+                <g id="node-q6" class="transition-all">
+                  <circle cx="268" cy="232" r="20" fill="none" stroke="#6ee7b7" stroke-width="1.6" />
+                  <circle cx="268" cy="232" r="15" fill="#1e3a34" stroke="#6ee7b7" stroke-width="2" />
+                  <text x="268" y="236" text-anchor="middle" fill="#6ee7b7" font-size="11" font-weight="bold" font-family="JetBrains Mono">q6</text>
+                </g>
+              </svg>
+
+              <div class="flex items-center justify-between px-2 pt-1 text-[10px] text-[#fff0e5]/60 border-t border-white/10">
+                <span>Notação: <code class="text-[#f5a673]">entrada, topo ; novo_topo</code></span>
+                <span class="text-emerald-300">◎ q6 = Aceitação</span>
+              </div>
+            </div>
+
+            <!-- Tubo Visual da Pilha LIFO (4 colunas) -->
+            <div class="sm:col-span-4 glass-subpanel rounded-xl p-2.5 flex flex-col justify-between">
+              <div class="text-center border-b border-white/10 pb-1.5">
+                <div class="text-[11px] font-bold tracking-wider uppercase text-[#f5a673]">Pilha (LIFO)</div>
+                <div class="text-[10px] text-[#fff0e5]/60">Último a entrar = 1º a sair</div>
+              </div>
+
+              <!-- Tubo da Pilha -->
+              <div class="my-2 flex-1 min-h-[185px] max-h-[220px] rounded-b-xl border-x-2 border-b-2 border-[#fff0e5]/30 bg-[#120b1e]/70 p-2 flex flex-col-reverse gap-1.5 overflow-y-auto relative" id="stack-tube">
+                <!-- Itens da pilha renderizados dinamicamente -->
+              </div>
+
+              <!-- Legenda da Pilha -->
+              <div class="grid grid-cols-3 gap-1 text-[9px] font-mono-code text-center pt-1 border-t border-white/10">
+                <div class="rounded bg-amber-500/20 text-amber-200 py-0.5">A: Cristal</div>
+                <div class="rounded bg-cyan-500/20 text-cyan-200 py-0.5">X: Chave</div>
+                <div class="rounded bg-white/10 text-[#fff0e5]/80 py-0.5">Z0: Base</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+    </main>
+  </div>
+
+  <div id="modal-restart" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/75 backdrop-blur-md p-4" role="dialog" aria-modal="true" aria-labelledby="restart-title">
+    <div class="glass-panel max-w-md w-full rounded-2xl p-5 border border-rose-300/40">
+      <div class="text-3xl mb-2" aria-hidden="true">🌀</div>
+      <h2 id="restart-title" class="font-display text-lg font-bold text-rose-200">Sequência rejeitada</h2>
+      <p class="mt-2 text-sm text-[#fff0e5]/80">O PDA bloqueou este roteiro. Quer reiniciar a jornada? O estado atual continuará visível se você escolher analisar o resultado.</p>
+      <div class="flex justify-end gap-2 mt-5">
+        <button onclick="dismissRestartConfirmation()" class="btn-alto px-3 py-2 rounded-lg glass-subpanel text-sm border border-white/20">Analisar resultado</button>
+        <button onclick="confirmRestart()" class="btn-alto px-3 py-2 rounded-lg bg-gradient-to-r from-[#d86c70] to-[#f5a673] text-[#211832] font-semibold text-sm">Reiniciar jornada</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-victory" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/75 backdrop-blur-md p-4" role="dialog" aria-modal="true" aria-labelledby="victory-title">
+    <div class="glass-panel max-w-md w-full rounded-2xl p-5 border border-emerald-300/50 text-center">
+      <div class="text-5xl mb-2" aria-hidden="true">🏆</div>
+      <h2 id="victory-title" class="font-display text-xl font-bold text-emerald-200">Vitória!</h2>
+      <p id="victory-copy" class="mt-2 text-sm text-[#fff0e5]/80">O PDA chegou a <b>q6</b> com a pilha válida. Jornada concluída!</p>
+      <div class="flex justify-center gap-2 mt-5">
+        <button onclick="dismissVictory()" class="btn-alto px-3 py-2 rounded-lg glass-subpanel text-sm border border-white/20">Ver resultado</button>
+        <button id="victory-next" onclick="advancePhaseOrReplay()" class="btn-alto px-3 py-2 rounded-lg bg-gradient-to-r from-emerald-300 to-cyan-300 text-[#172d2a] font-semibold text-sm">Próxima fase</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: GUIA DO JOGO, REGRAS E DIAGRAMA JFLAP -->
+  <div id="modal-guide" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/75 backdrop-blur-md p-4">
+    <div class="glass-panel max-w-3xl w-full max-h-[88vh] rounded-2xl p-5 sm:p-6 overflow-y-auto flex flex-col gap-4 border border-[#f5a673]/40">
+      <div class="flex items-center justify-between border-b border-white/15 pb-3">
+        <div>
+          <h2 class="font-display text-xl font-bold text-[#f5a673]">Formalismo do PDA &amp; Guia JFLAP</h2>
+          <p class="text-xs text-[#fff0e5]/75">Especificação matemática completa implementada no jogo</p>
+        </div>
+        <button onclick="closeModal('modal-guide')" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-rose-500/40 flex items-center justify-center text-sm font-bold">✕</button>
+      </div>
+
+      <!-- Enredo e Lógica LIFO -->
+      <div class="glass-subpanel rounded-xl p-3.5 text-xs sm:text-sm text-[#fff0e5]/90 leading-relaxed space-y-2">
+        <p>
+          <strong class="text-[#f5a673]">Enredo:</strong> No crepúsculo do deserto ancestral, o Viajante precisa atravessar as câmaras do Oráculo. Cada <b>Cristal Estelar (*)</b> acumula energia <code>A</code> na mochila (pilha) e cada <b>Chave Ancestral (a)</b> é guardada por cima (<code>X</code>).
+        </p>
+        <p>
+          <strong class="text-cyan-300">Por que a Pilha importa (LIFO)?</strong> A mochila é uma pilha (<i>Last-In, First-Out</i>): somente o item que está no topo pode ser usado. `s` consome um cristal <code>A</code>, `b` consome uma chave <code>X</code> e o objetivo da fase exige que reste apenas <code>Z0</code>.
+        </p>
+      </div>
+
+      <!-- Quíntupla Formal -->
+      <div class="glass-subpanel rounded-xl p-3.5 font-mono-code text-xs space-y-1.5">
+        <div id="formal-phase-title" class="text-[#f5a673] font-bold">Definição Formal da Fase 1: M = (Q, Σ, Γ, δ, q0, Z0, F)</div>
+        <div>• <b>Q</b> = {q0, q1, q2, q3, q4, q5, q6} <span class="text-[#fff0e5]/60">(7 estados)</span></div>
+        <div>• <b>Σ</b> = <span id="formal-alphabet">{*, a, s, b, c}</span> <span class="text-[#fff0e5]/60">(Alfabeto de entrada)</span></div>
+        <div>• <b>Γ</b> = {Z0, A, X} <span class="text-[#fff0e5]/60">(Alfabeto da pilha)</span></div>
+        <div>• <b>q0</b> = Estado inicial | <b>Z0</b> = Símbolo inicial da pilha | <b>F</b> = {q6}</div>
+      </div>
+
+      <!-- Tabela de Transições JFLAP -->
+      <div class="overflow-x-auto rounded-xl border border-white/15">
+        <table class="w-full text-left text-xs font-mono-code">
+          <thead class="bg-[#4a2545] text-[#f5a673]">
+            <tr>
+              <th class="p-2.5">Estado</th>
+              <th class="p-2.5">Entrada</th>
+              <th class="p-2.5">Topo</th>
+              <th class="p-2.5">Empilha</th>
+              <th class="p-2.5">Destino</th>
+              <th class="p-2.5 font-sans">Ação no Jogo</th>
+            </tr>
+          </thead>
+          <tbody id="transition-table-body" class="divide-y divide-white/10 bg-[#1a112b]/80"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* =========================================================================
+       1. SINTETIZADOR DE ÁUDIO PROCEDURAL (WEB AUDIO API - ESTILO ALTO'S ODYSSEY)
+       ========================================================================= */
+    let audioCtx = null;
+    let isAudioEnabled = false;
+    let ambientInterval = null;
+    let masterGain = null;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        masterGain = audioCtx.createGain();
+        masterGain.gain.value = 0.25;
+        masterGain.connect(audioCtx.destination);
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function toggleAudio() {
+      initAudio();
+      isAudioEnabled = !isAudioEnabled;
+      const icon = document.getElementById('audio-icon');
+      const label = document.getElementById('audio-label');
+
+      if (isAudioEnabled) {
+        icon.textContent = '🔊';
+        label.textContent = 'Som Ambiente: On';
+        startAmbientMusic();
+        playSfx('crystal');
+      } else {
+        icon.textContent = '🔇';
+        label.textContent = 'Som Ambiente: Off';
+        stopAmbientMusic();
+      }
+    }
+
+    // Pad atmosférico suave em Fmaj9 / Dm7
+    function startAmbientMusic() {
+      if (ambientInterval) clearInterval(ambientInterval);
+      const chords = [
+        [174.61, 220.00, 261.63, 329.63], // Fmaj7
+        [146.83, 174.61, 220.00, 261.63], // Dm7
+        [130.81, 196.00, 246.94, 293.66], // Cmaj9
+        [146.83, 220.00, 261.63, 329.63]  // Dm9
+      ];
+      let step = 0;
+
+      const playPadChord = () => {
+        if (!isAudioEnabled || !audioCtx) return;
+        const now = audioCtx.currentTime;
+        const freqs = chords[step % chords.length];
+        step++;
+
+        freqs.forEach((f) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          const filter = audioCtx.createBiquadFilter();
+
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(f, now);
+
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(650, now);
+
+          gain.gain.setValueAtTime(0.0001, now);
+          gain.gain.exponentialRampToValueAtTime(0.045, now + 1.4);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 4.8);
+
+          osc.connect(filter);
+          filter.connect(gain);
+          gain.connect(masterGain);
+
+          osc.start(now);
+          osc.stop(now + 5.0);
+        });
+      };
+
+      playPadChord();
+      ambientInterval = setInterval(playPadChord, 4600);
+    }
+
+    function stopAmbientMusic() {
+      if (ambientInterval) {
+        clearInterval(ambientInterval);
+        ambientInterval = null;
+      }
+    }
+
+    // Efeitos Sonoros para cada ação do jogo e do PDA
+    function playSfx(type) {
+      if (!isAudioEnabled || !audioCtx) return;
+      const now = audioCtx.currentTime;
+
+      const tone = (freq, dur, wave = 'sine', vol = 0.14, slideTo = null) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = wave;
+        osc.frequency.setValueAtTime(freq, now);
+        if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, now + dur);
+
+        gain.gain.setValueAtTime(vol, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+
+        osc.connect(gain);
+        gain.connect(masterGain);
+        osc.start(now);
+        osc.stop(now + dur);
+      };
+
+      switch (type) {
+        case 'step':
+          tone(140, 0.08, 'triangle', 0.05, 90);
+          break;
+        case 'crystal': // * empilha A
+          tone(587.33, 0.35, 'sine', 0.14, 880);
+          setTimeout(() => isAudioEnabled && tone(1174.66, 0.4, 'sine', 0.09), 70);
+          break;
+        case 'key': // a empilha X
+          tone(440, 0.25, 'triangle', 0.14, 659.25);
+          setTimeout(() => isAudioEnabled && tone(880, 0.35, 'sine', 0.1), 60);
+          break;
+        case 'pop': // s ou b desempilha
+          tone(523.25, 0.28, 'sine', 0.14, 261.63);
+          break;
+        case 'barrier':
+          tone(740, 0.22, 'triangle', 0.12, 370);
+          break;
+        case 'gate':
+          tone(196, 0.16, 'square', 0.08, 130.81);
+          setTimeout(() => isAudioEnabled && tone(392, 0.12, 'triangle', 0.07), 90);
+          break;
+        case 'accept': // c chega em q6
+          [523.25, 659.25, 783.99, 1046.50].forEach((f, idx) => {
+            setTimeout(() => isAudioEnabled && tone(f, 0.65, 'sine', 0.13), idx * 95);
+          });
+          break;
+        case 'reject': // Erro / Rejeição
+          tone(185, 0.45, 'sawtooth', 0.12, 110);
+          setTimeout(() => isAudioEnabled && tone(146.83, 0.5, 'triangle', 0.12, 98), 110);
+          break;
+      }
+    }
+
+    /* =========================================================================
+       2. MOTOR FORMAL DO AUTÔMATO COM PILHA (PDA - 7 ESTADOS: q0 A q6)
+       ========================================================================= */
+    const STATE_DESCRIPTIONS = {
+      q0: 'Átrio Inicial',
+      q1: 'Galeria dos Cristais',
+      q2: 'Corredor Selado',
+      q3: 'Salão dos Arcos',
+      q4: 'Câmara de Equilíbrio',
+      q5: 'Antecâmara do Portal',
+      q6: 'Santuário (Final)'
+    };
+
+    let phaseIndex = 0;
+    const PHASES = [
+      {
+        title: 'Fase 1 • O Portal Crepuscular', goalSymbol: 'c', alphabet: '*asbc', solution: '*sabc',
+        goalName: 'Portal circular',
+        stateNames: ['Átrio Inicial', 'Galeria dos Cristais', 'Corredor Selado', 'Salão dos Arcos', 'Câmara de Equilíbrio', 'Antecâmara do Portal', 'Santuário'],
+        hints: [
+          ['ACEITA', '*sabc', 'Cristal, barreira, chave, arco e portal.'],
+          ['ACEITA', '**aabbssc', 'Empilha dois cristais e duas chaves; respeite o LIFO.'],
+          ['REJEITA', '*sbc', 'Tenta abrir arco sem chave no topo.'],
+          ['REJEITA', '**aabbc', 'Chega ao portal com cristais sobrando.']
+        ]
+      },
+      {
+        title: 'Fase 2 • A Câmara das Duas Barreiras', goalSymbol: 'c', alphabet: '*asbc', solution: '*ab*ssc',
+        goalName: 'Portal circular',
+        stateNames: ['Entrada da Câmara', 'Cristal e Chave', 'Arco Destravado', 'Cristal Recuperado', 'Duas Barreiras', 'Portal Liberado', 'Câmara Superada'],
+        hints: [
+          ['ACEITA', '*ab*ssc', 'Use a chave, recupere o cristal e abra as duas barreiras.'],
+          ['ACEITA', '*aabb*ssc', 'Duas chaves e dois cristais são consumidos em ordem LIFO.'],
+          ['REJEITA', '*a*bc', 'Tenta coletar cristal sobre uma chave no topo.'],
+          ['REJEITA', '*ab*sc', 'Sobra um cristal antes do portal.']
+        ]
+      },
+      {
+        title: 'Fase 3 • O Tesouro do Oráculo', goalSymbol: 't', alphabet: '*asbt', solution: 'a*sbt',
+        goalName: 'Baú do Tesouro',
+        stateNames: ['Entrada do Tesouro', 'Chave Ancestral', 'Cristal sobre a Chave', 'Poção de Energia', 'Redemoinho Selado', 'Salão do Tesouro', 'Tesouro Encontrado'],
+        hints: [
+          ['ACEITA', 'a*sbt', 'Empilhe chave e cristal; consuma-os em ordem LIFO antes do baú.'],
+          ['ACEITA', 'a**ssbt', 'Dois cristais exigem duas poções/barreiras antes da chave.'],
+          ['REJEITA', 'a*bt', 'Tenta usar a chave enquanto o cristal ainda está no topo.'],
+          ['REJEITA', 'a*sb*t', 'O roteiro continua depois da transição final.']
+        ]
+      }
+    ];
+
+    const PDA_RULES = [
+      [
+        { from: 'q0', symbol: '*', top: 'Z0', to: 'q1', operation: 'push', value: 'A', edge: 'edge-q0-q1', sfx: 'crystal', desc: 'Coleta o primeiro cristal.' },
+        { from: 'q1', symbol: '*', top: 'A', to: 'q1', operation: 'push', value: 'A', edge: 'edge-q1-q1', sfx: 'crystal', desc: 'Empilha outro cristal.' },
+        { from: 'q1', symbol: 'a', top: 'A', to: 'q1', operation: 'push', value: 'X', edge: 'edge-q1-q1', sfx: 'key', desc: 'Empilha uma chave sobre o cristal.' },
+        { from: 'q1', symbol: 'a', top: 'X', to: 'q1', operation: 'push', value: 'X', edge: 'edge-q1-q1', sfx: 'key', desc: 'Empilha uma chave sobre outra chave.' },
+        { from: 'q1', symbol: 's', top: 'A', to: 'q2', operation: 'pop', edge: 'edge-q1-q2', sfx: 'barrier', desc: 'Consome cristal para abrir a barreira.' },
+        { from: 'q1', symbol: 'b', top: 'X', to: 'q3', operation: 'pop', edge: 'edge-q1-q3', sfx: 'gate', desc: 'Consome chave para abrir o arco.' },
+        { from: 'q2', symbol: 'a', top: 'Z0', to: 'q3', operation: 'push', value: 'X', edge: 'edge-q2-q3', sfx: 'key', desc: 'Coleta uma chave no corredor.' },
+        { from: 'q2', symbol: 'a', top: 'A', to: 'q3', operation: 'push', value: 'X', edge: 'edge-q2-q3', sfx: 'key', desc: 'Empilha chave sobre cristal.' },
+        { from: 'q2', symbol: 's', top: 'A', to: 'q2', operation: 'pop', edge: 'edge-q2-q2', sfx: 'barrier', desc: 'Consome outro cristal.' },
+        { from: 'q2', symbol: 'b', top: 'X', to: 'q3', operation: 'pop', edge: 'edge-q2-q3', sfx: 'gate', desc: 'Destranca o arco com uma chave.' },
+        { from: 'q3', symbol: 'b', top: 'X', to: 'q4', operation: 'pop', edge: 'edge-q3-q4', sfx: 'gate', desc: 'Abre o arco principal.' },
+        { from: 'q4', symbol: 'b', top: 'X', to: 'q4', operation: 'pop', edge: 'edge-q4-q4', sfx: 'gate', desc: 'Consome uma chave extra.' },
+        { from: 'q4', symbol: 's', top: 'A', to: 'q4', operation: 'pop', edge: 'edge-q4-q4', sfx: 'barrier', desc: 'Consome um cristal extra.' },
+        { from: 'q4', symbol: 'λ', top: 'Z0', to: 'q5', operation: 'keep', edge: 'edge-q4-q5', sfx: '', desc: 'Libera o portal com a pilha vazia.' },
+        { from: 'q5', symbol: 'c', top: 'Z0', to: 'q6', operation: 'keep', edge: 'edge-q5-q6', sfx: 'accept', desc: 'Atravessa o portal circular.' }
+      ],
+      [
+        { from: 'q0', symbol: '*', top: 'Z0', to: 'q1', operation: 'push', value: 'A', edge: 'edge-q0-q1', sfx: 'crystal', desc: 'Coleta o cristal inicial.' },
+        { from: 'q1', symbol: 'a', top: 'A', to: 'q1', operation: 'push', value: 'X', edge: 'edge-q1-q1', sfx: 'key', desc: 'Empilha uma chave sobre o cristal.' },
+        { from: 'q1', symbol: 'a', top: 'X', to: 'q1', operation: 'push', value: 'X', edge: 'edge-q1-q1', sfx: 'key', desc: 'Empilha outra chave.' },
+        { from: 'q1', symbol: 'b', top: 'X', to: 'q2', operation: 'pop', edge: 'edge-q1-q2', sfx: 'gate', desc: 'Usa a chave para abrir o primeiro arco.' },
+        { from: 'q2', symbol: 'b', top: 'X', to: 'q2', operation: 'pop', edge: 'edge-q2-q2', sfx: 'gate', desc: 'Consome uma chave extra no corredor.' },
+        { from: 'q2', symbol: '*', top: 'A', to: 'q3', operation: 'push', value: 'A', edge: 'edge-q2-q3', sfx: 'crystal', desc: 'Recupera um cristal na câmara.' },
+        { from: 'q3', symbol: 's', top: 'A', to: 'q4', operation: 'pop', edge: 'edge-q3-q4', sfx: 'barrier', desc: 'Abre a primeira barreira.' },
+        { from: 'q4', symbol: 's', top: 'A', to: 'q4', operation: 'pop', edge: 'edge-q4-q4', sfx: 'barrier', desc: 'Abre a segunda barreira.' },
+        { from: 'q4', symbol: 'λ', top: 'Z0', to: 'q5', operation: 'keep', edge: 'edge-q4-q5', sfx: '', desc: 'Libera o portal após descarregar a pilha.' },
+        { from: 'q5', symbol: 'c', top: 'Z0', to: 'q6', operation: 'keep', edge: 'edge-q5-q6', sfx: 'accept', desc: 'Atravessa o portal da câmara.' }
+      ],
+      [
+        { from: 'q0', symbol: 'a', top: 'Z0', to: 'q1', operation: 'push', value: 'X', edge: 'edge-q0-q1', sfx: 'key', desc: 'Coleta a chave ancestral.' },
+        { from: 'q1', symbol: '*', top: 'X', to: 'q1', operation: 'push', value: 'A', edge: 'edge-q1-q1', sfx: 'crystal', desc: 'Empilha cristal sobre a chave.' },
+        { from: 'q1', symbol: '*', top: 'A', to: 'q1', operation: 'push', value: 'A', edge: 'edge-q1-q1', sfx: 'crystal', desc: 'Empilha outro cristal.' },
+        { from: 'q1', symbol: 's', top: 'A', to: 'q2', operation: 'pop', edge: 'edge-q1-q2', sfx: 'barrier', desc: 'Consome cristal na primeira poção.' },
+        { from: 'q2', symbol: 's', top: 'A', to: 'q2', operation: 'pop', edge: 'edge-q2-q2', sfx: 'barrier', desc: 'Consome cristal em outra poção.' },
+        { from: 'q2', symbol: 'b', top: 'X', to: 'q3', operation: 'pop', edge: 'edge-q2-q3', sfx: 'gate', desc: 'Usa a chave no redemoinho.' },
+        { from: 'q3', symbol: 'λ', top: 'Z0', to: 'q4', operation: 'keep', edge: 'edge-q3-q4', sfx: '', desc: 'A pilha vazia libera a passagem.' },
+        { from: 'q4', symbol: 'λ', top: 'Z0', to: 'q5', operation: 'keep', edge: 'edge-q4-q5', sfx: '', desc: 'A passagem leva ao salão do tesouro.' },
+        { from: 'q5', symbol: 't', top: 'Z0', to: 'q6', operation: 'keep', edge: 'edge-q5-q6', sfx: 'accept', desc: 'Abre o baú do tesouro.' }
+      ]
+    ];
+
+    function getCurrentPhase() {
+      return PHASES[phaseIndex];
+    }
+
+    const PHASE_GRAPH_LABELS = [
+      {
+        'edge-q0-q1': '*,Z0;AZ0', 'edge-q1-q1': '*,A;AA | a,A;XA | a,X;XX',
+        'edge-q1-q2': 's,A;λ', 'edge-q1-q3': 'b,X;λ', 'edge-q2-q2': 's,A;λ',
+        'edge-q2-q3': 'a,Z0;XZ0 | a,A;XA | b,X;λ', 'edge-q3-q4': 'b,X;λ',
+        'edge-q4-q4': 'b,X;λ | s,A;λ', 'edge-q4-q5': 'λ,Z0;Z0', 'edge-q5-q6': 'c,Z0;Z0'
+      },
+      {
+        'edge-q0-q1': '*,Z0;AZ0', 'edge-q1-q1': 'a,A;XA | a,X;XX',
+        'edge-q1-q2': 'b,X;λ', 'edge-q2-q2': 'b,X;λ', 'edge-q2-q3': '*,A;AA',
+        'edge-q3-q4': 's,A;λ', 'edge-q4-q4': 's,A;λ', 'edge-q4-q5': 'λ,Z0;Z0', 'edge-q5-q6': 'c,Z0;Z0'
+      },
+      {
+        'edge-q0-q1': 'a,Z0;XZ0', 'edge-q1-q1': '*,X;AX | *,A;AA',
+        'edge-q1-q2': 's,A;λ', 'edge-q2-q2': 's,A;λ', 'edge-q2-q3': 'b,X;λ',
+        'edge-q3-q4': 'λ,Z0;Z0', 'edge-q4-q5': 'λ,Z0;Z0', 'edge-q5-q6': 't,Z0;Z0'
+      }
+    ];
+
+    const PHASE_GRAPH_EDGES = [
+      ['edge-q0-q1', 'edge-q1-q1', 'edge-q1-q2', 'edge-q1-q3', 'edge-q2-q2', 'edge-q2-q3', 'edge-q3-q4', 'edge-q4-q4', 'edge-q4-q5', 'edge-q5-q6'],
+      ['edge-q0-q1', 'edge-q1-q1', 'edge-q1-q2', 'edge-q2-q2', 'edge-q2-q3', 'edge-q3-q4', 'edge-q4-q4', 'edge-q4-q5', 'edge-q5-q6'],
+      ['edge-q0-q1', 'edge-q1-q1', 'edge-q1-q2', 'edge-q2-q2', 'edge-q2-q3', 'edge-q3-q4', 'edge-q4-q5', 'edge-q5-q6']
+    ];
+
+    function renderPhaseHints() {
+      const container = document.getElementById('phase-hints');
+      container.innerHTML = '';
+      getCurrentPhase().hints.forEach(([result, script, description], index) => {
+        const accepted = result === 'ACEITA';
+        const button = document.createElement('button');
+        button.className = `btn-alto text-left p-2.5 rounded-xl glass-subpanel border flex items-center justify-between gap-2 group ${accepted ? 'hover:bg-emerald-500/15 border-emerald-400/30' : 'hover:bg-rose-500/15 border-rose-400/30'}`;
+        button.innerHTML = `<span><span class="px-1.5 py-0.5 text-[10px] font-bold rounded ${accepted ? 'bg-emerald-500/25 text-emerald-300' : 'bg-rose-500/25 text-rose-300'}">${result}</span> <b class="font-mono-code text-sm text-[#fff0e5]">${script}</b><span class="block text-[11px] text-[#fff0e5]/70 mt-1">${index + 1}. ${description}</span></span><span class="${accepted ? 'text-emerald-300' : 'text-rose-300'}">▶</span>`;
+        button.addEventListener('click', () => loadPreset(script, true));
+        container.appendChild(button);
+      });
+    }
+
+    function renderPhaseGraph() {
+      const labels = PHASE_GRAPH_LABELS[phaseIndex];
+      const activeEdges = PHASE_GRAPH_EDGES[phaseIndex];
+      Object.keys(PHASE_GRAPH_LABELS[0]).forEach(edgeId => {
+        const path = document.getElementById(edgeId);
+        const label = document.getElementById(`label-${edgeId}`);
+        const active = activeEdges.includes(edgeId);
+        path.style.display = active ? '' : 'none';
+        label.style.display = labels[edgeId] ? '' : 'none';
+        label.textContent = labels[edgeId] || '';
+      });
+    }
+
+    function renderFormalTable() {
+      const body = document.getElementById('transition-table-body');
+      body.innerHTML = '';
+      PDA_RULES[phaseIndex].forEach(rule => {
+        const replacement = rule.operation === 'push' ? `${rule.value}${rule.top}` : rule.operation === 'pop' ? 'λ' : rule.top;
+        const row = document.createElement('tr');
+        row.innerHTML = `<td class="p-2">${rule.from}</td><td class="p-2 font-bold">${rule.symbol}</td><td class="p-2">${rule.top}</td><td class="p-2">${replacement}</td><td class="p-2">${rule.to}</td><td class="p-2 font-sans">${rule.desc}</td>`;
+        body.appendChild(row);
+      });
+    }
+
+    function updatePhaseUI() {
+      const phase = getCurrentPhase();
+      document.getElementById('phase-indicator').textContent = `Fase ${phaseIndex + 1}/3 · ${phase.title.split(' • ')[1]}`;
+      document.getElementById('goal-symbol').textContent = phase.goalSymbol;
+      document.getElementById('goal-name').textContent = phase.goalName;
+      document.getElementById('tape-alphabet').textContent = `Σ = {${[...phase.alphabet].join(',')}}`;
+      document.getElementById('formal-phase-title').textContent = `Definição Formal da Fase ${phaseIndex + 1}: M = (Q, Σ, Γ, δ, q0, Z0, F)`;
+      document.getElementById('formal-alphabet').textContent = `{${[...phase.alphabet].join(', ')}}`;
+      document.getElementById('graph-phase-label').textContent = `Fase ${phaseIndex + 1} • 7 Estados • F = {q6}`;
+      document.getElementById('tape-input').placeholder = `Digite símbolos: ${phase.alphabet} (ex: ${phase.solution})`;
+      document.getElementById('tape-input').value = phase.solution;
+      document.getElementById('victory-next').textContent = phaseIndex === PHASES.length - 1 ? 'Jogar novamente' : 'Próxima fase';
+      renderPhaseHints();
+      renderPhaseGraph();
+      renderFormalTable();
+    }
+
+    const pda = {
+      state: 'q0',
+      stack: ['Z0'], // Topo é o último elemento do array: stack[stack.length - 1]
+      status: 'RUNNING', // RUNNING | ACCEPTED | REJECTED
+      lastEdge: null,
+      history: []
+    };
+
+    function resetPDA() {
+      pda.state = 'q0';
+      pda.stack = ['Z0'];
+      pda.status = 'RUNNING';
+      pda.lastEdge = null;
+      pda.history = [];
+      updatePDAUI('Autômato reiniciado em <b>q0</b> com pilha <b>[Z0]</b>.');
+    }
+
+    function findTransition(state, symbol, top) {
+      return PDA_RULES[phaseIndex].find(rule => rule.from === state && rule.symbol === symbol && rule.top === top);
+    }
+
+    function applyStackOperation(rule) {
+      if (rule.operation === 'push') pda.stack.push(rule.value);
+      if (rule.operation === 'pop') pda.stack.pop();
+    }
+
+    function applyEpsilonTransitions() {
+      const applied = [];
+      while (true) {
+        const top = pda.stack[pda.stack.length - 1];
+        const rule = findTransition(pda.state, 'λ', top);
+        if (!rule) break;
+        applyStackOperation(rule);
+        pda.state = rule.to;
+        pda.lastEdge = rule.edge;
+        applied.push(rule);
+      }
+      return applied;
+    }
+
+    function stepPDA(symbol) {
+      if (pda.status === 'REJECTED') {
+        return { ok: false, reason: 'O autômato já está em estado de REJEIÇÃO. Reinicie para testar novamente.' };
+      }
+      if (pda.status === 'ACCEPTED') {
+        pda.status = 'REJECTED';
+        pda.lastEdge = null;
+        updatePDAUI(`<b>REJEITADA:</b> Símbolo extra '<b>${symbol}</b>' lido após atingir o estado final <b>q6</b>.`);
+        playSfx('reject');
+        showRestartConfirmation();
+        return { ok: false, reason: 'Símbolo extra após estado final.' };
+      }
+
+      const top = pda.stack[pda.stack.length - 1];
+      const prevState = pda.state;
+      const rule = findTransition(prevState, symbol, top);
+      if (!rule) {
+        pda.status = 'REJECTED';
+        pda.lastEdge = null;
+        const reason = explainRejection(prevState, symbol, top);
+        updatePDAUI(`<b>SEQUÊNCIA REJEITADA:</b> ${reason}`, symbol, 'Bloqueado');
+        playSfx('reject');
+        showRestartConfirmation();
+        return { ok: false, reason };
+      }
+
+      applyStackOperation(rule);
+      pda.state = rule.to;
+      pda.lastEdge = rule.edge;
+      let actionDesc = rule.desc;
+      const didEpsilon = applyEpsilonTransitions();
+      didEpsilon.forEach(epsilonRule => {
+        actionDesc += ` Transição espontânea <b>λ: ${epsilonRule.from} → ${epsilonRule.to}</b>. ${epsilonRule.desc}`;
+      });
+
+      if (pda.state === 'q6') {
+        pda.status = 'ACCEPTED';
+      }
+
+      if (rule.sfx) playSfx(rule.sfx);
+      updatePDAUI(`δ(${prevState}, <b>${symbol}</b>, ${top}) → <b>${pda.state}</b>. ${actionDesc}`, symbol, getSymbolShortName(symbol));
+      if (pda.status === 'ACCEPTED') showVictoryModal();
+
+      return { ok: true };
+    }
+
+    function explainRejection(state, symbol, top) {
+      if (symbol === 'b' && top !== 'X') {
+        return `Tentativa de abrir Arco (<b>b</b>), mas o topo da pilha é <b>${top}</b> (exige Chave <b>X</b> no topo - regra LIFO).`;
+      }
+      if (symbol === 's' && top !== 'A') {
+        return `Tentativa de dissipar Barreira (<b>s</b>), mas o topo da pilha é <b>${top}</b> (exige Cristal <b>A</b> no topo - regra LIFO).`;
+      }
+      if (symbol === getCurrentPhase().goalSymbol && top !== 'Z0') {
+        return `Tentativa de alcançar o objetivo (<b>${symbol}</b>), mas ainda restam itens na pilha (topo = <b>${top}</b>, exige <b>Z0</b>).`;
+      }
+      if (symbol === getCurrentPhase().goalSymbol && state !== 'q5') {
+        return `Você tentou alcançar o objetivo (<b>${symbol}</b>) estando em <b>${state}</b>, antes de concluir os desafios anteriores.`;
+      }
+      return `Não existe transição definida para δ(${state}, '${symbol}', ${top}).`;
+    }
+
+    function getSymbolShortName(sym) {
+      const map = { '*': 'Cristal (+A)', 'a': 'Chave (+X)', 's': 'Poção (-A)', 'b': 'Redemoinho (-X)', 'c': 'Portal (Z0)', 't': 'Baú do Tesouro' };
+      return map[sym] || sym;
+    }
+
+    /* =========================================================================
+       3. ATUALIZAÇÃO DA INTERFACE VISUAL (GRAFO SVG, TUBO DA PILHA E TELEMETRIA)
+       ========================================================================= */
+    function updatePDAUI(logHtml, currentSym = '—', actionLabel = 'Aguardando') {
+      // 1. Telemetria textual
+      document.getElementById('telemetry-state').textContent = pda.state;
+      const stateIndex = Number(pda.state.slice(1));
+      document.getElementById('telemetry-state-name').textContent = getCurrentPhase().stateNames[stateIndex] || '';
+      document.getElementById('telemetry-symbol').textContent = currentSym;
+      document.getElementById('telemetry-action').textContent = actionLabel;
+
+      const reversedStack = [...pda.stack].reverse();
+      document.getElementById('telemetry-stack-str').textContent = reversedStack.join(' ');
+      document.getElementById('telemetry-top').textContent = pda.stack[pda.stack.length - 1];
+
+      // 2. Log de transição
+      const logBox = document.getElementById('transition-log');
+      logBox.innerHTML = logHtml;
+
+      // 3. Badge de Status (ACEITA / REJEITADA / EM CURSO)
+      const badge = document.getElementById('status-badge');
+      if (pda.status === 'ACCEPTED') {
+        badge.className = 'px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase bg-emerald-500/25 text-emerald-300 border border-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.45)]';
+        badge.textContent = '✔ SEQUÊNCIA ACEITA';
+        logBox.style.borderLeftColor = '#34d399';
+      } else if (pda.status === 'REJECTED') {
+        badge.className = 'px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase bg-rose-500/25 text-rose-300 border border-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.45)]';
+        badge.textContent = '✖ SEQUÊNCIA REJEITADA';
+        logBox.style.borderLeftColor = '#fb7185';
+      } else {
+        badge.className = 'px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase bg-amber-500/20 text-amber-200 border border-amber-400/40';
+        badge.textContent = '● EM PROCESSAMENTO';
+        logBox.style.borderLeftColor = '#f5a673';
+      }
+
+      // 4. Atualizar Grafo SVG (Nós e Arestas)
+      ['q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'q6'].forEach(st => {
+        const group = document.getElementById(`node-${st}`);
+        if (!group) return;
+        const circles = group.querySelectorAll('circle');
+        const mainCircle = circles[circles.length - 1];
+
+        if (st === pda.state) {
+          group.classList.add('node-active');
+          mainCircle.setAttribute('fill', pda.status === 'REJECTED' ? '#7f1d1d' : '#d86c70');
+          mainCircle.setAttribute('stroke', '#fff0e5');
+          mainCircle.setAttribute('stroke-width', '3');
+        } else {
+          group.classList.remove('node-active');
+          mainCircle.setAttribute('fill', st === 'q6' ? '#1e3a34' : '#2d1b3d');
+          mainCircle.setAttribute('stroke', st === 'q6' ? '#6ee7b7' : 'rgba(255,240,229,0.45)');
+          mainCircle.setAttribute('stroke-width', '2');
+        }
+      });
+
+      document.querySelectorAll('#pda-graph path[id^="edge-"]').forEach(edge => {
+        if (edge.id === pda.lastEdge) {
+          edge.setAttribute('stroke', '#f5a673');
+          edge.setAttribute('stroke-width', '3');
+          edge.setAttribute('marker-end', 'url(#arrow-active)');
+        } else {
+          edge.setAttribute('stroke', 'rgba(255,240,229,0.32)');
+          edge.setAttribute('stroke-width', '1.8');
+          edge.setAttribute('marker-end', 'url(#arrow)');
+        }
+      });
+
+      // 5. Renderizar Tubo da Pilha LIFO
+      renderStackTube();
+    }
+
+    function renderStackTube() {
+      const tube = document.getElementById('stack-tube');
+      tube.innerHTML = '';
+
+      pda.stack.forEach((item, index) => {
+        const isTop = index === pda.stack.length - 1;
+        const div = document.createElement('div');
+
+        let styleClass = 'bg-white/15 border-white/30 text-[#fff0e5]';
+        let label = 'Z0 • Base';
+        if (item === 'A') {
+          styleClass = 'bg-gradient-to-r from-amber-500/35 to-orange-400/35 border-amber-300/60 text-amber-100';
+          label = 'A • Cristal';
+        } else if (item === 'X') {
+          styleClass = 'bg-gradient-to-r from-cyan-500/35 to-purple-500/35 border-cyan-300/60 text-cyan-100';
+          label = 'X • Chave';
+        }
+
+        div.className = `stack-item-enter px-2.5 py-1.5 rounded-lg border font-mono-code text-xs font-bold flex items-center justify-between ${styleClass} ${isTop ? 'ring-2 ring-[#f5a673]' : 'opacity-85'}`;
+        div.innerHTML = `
+          <span>${label}</span>
+          ${isTop ? '<span class="text-[9px] px-1.5 py-0.2 rounded bg-[#f5a673] text-[#211832] font-extrabold">TOPO</span>' : ''}
+        `;
+        tube.appendChild(div);
+      });
+    }
+
+    /* =========================================================================
+       4. SIMULADOR DE ROTEIRO (FITA DE ENTRADA, STEP-BY-STEP E 4 EXEMPLOS)
+       ========================================================================= */
+    let simTimer = null;
+    let simIndex = 0;
+    let simFailedIndex = -1;
+    let currentTape = '';
+
+    function sanitizeTapeInput(inputEl) {
+      inputEl.value = [...inputEl.value].filter(symbol => getCurrentPhase().alphabet.includes(symbol)).join('');
+      currentTape = inputEl.value;
+      simIndex = 0;
+      simFailedIndex = -1;
+      renderTapeVisual();
+    }
+
+    function renderTapeVisual() {
+      const container = document.getElementById('tape-visual');
+      const counter = document.getElementById('tape-counter');
+      currentTape = document.getElementById('tape-input').value;
+
+      counter.textContent = `${Math.min(simIndex, currentTape.length)} / ${currentTape.length} símbolos lidos`;
+      container.innerHTML = '';
+
+      if (!currentTape.length) {
+        container.innerHTML = '<span class="text-xs text-[#fff0e5]/40 italic px-2">Fita vazia. Caminhe com WASD ou digite símbolos...</span>';
+        return;
+      }
+
+      [...currentTape].forEach((ch, idx) => {
+        const cell = document.createElement('div');
+        let stateClass = 'bg-white/10 border-white/20 text-[#fff0e5]';
+        if (idx === simFailedIndex) {
+          stateClass = 'bg-rose-500/30 border-rose-300 text-rose-100 shadow-[0_0_12px_rgba(251,113,133,0.6)]';
+        } else if (idx < simIndex) {
+          stateClass = 'bg-emerald-500/20 border-emerald-400/40 text-emerald-200 opacity-70';
+        } else if (idx === simIndex) {
+          stateClass = 'bg-[#f5a673] border-[#fff0e5] text-[#211832] scale-110 shadow-md font-extrabold';
+        }
+
+        cell.className = `w-8 h-8 shrink-0 rounded-lg border font-mono-code text-sm flex items-center justify-center transition-all ${stateClass}`;
+        cell.textContent = ch;
+        container.appendChild(cell);
+      });
+    }
+
+    function stopSimulationTimer() {
+      if (simTimer) {
+        clearInterval(simTimer);
+        simTimer = null;
+      }
+    }
+
+    function loadPreset(scriptStr, autoStart = false) {
+      if (pda.status === 'REJECTED') {
+        requestRestart(() => applyPreset(scriptStr, autoStart));
+        return;
+      }
+      applyPreset(scriptStr, autoStart);
+    }
+
+    function applyPreset(scriptStr, autoStart) {
+      stopSimulationTimer();
+      document.getElementById('tape-input').value = scriptStr;
+      currentTape = scriptStr;
+      simIndex = 0;
+      simFailedIndex = -1;
+      resetPDA();
+      resetMapObjects();
+      renderTapeVisual();
+
+      if (autoStart) {
+        runScriptSimulation();
+      }
+    }
+
+    function runScriptSimulation() {
+      stopSimulationTimer();
+      currentTape = document.getElementById('tape-input').value.trim();
+      if (!currentTape) return;
+
+      if (pda.status === 'REJECTED') {
+        requestRestart(() => {
+          simIndex = 0;
+          simFailedIndex = -1;
+          resetPDA();
+          resetMapObjects();
+          beginScriptSimulation();
+        });
+        return;
+      }
+      if (pda.status === 'ACCEPTED') {
+        simIndex = 0;
+        simFailedIndex = -1;
+        resetPDA();
+        resetMapObjects();
+      }
+      if (simIndex >= currentTape.length) {
+        simIndex = 0;
+        simFailedIndex = -1;
+        resetPDA();
+        resetMapObjects();
+      }
+
+      beginScriptSimulation();
+    }
+
+    function beginScriptSimulation() {
+      renderTapeVisual();
+      const speed = parseInt(document.getElementById('sim-speed').value, 10) || 500;
+
+      simTimer = setInterval(() => {
+        const keepGoing = executeNextTapeSymbol();
+        if (!keepGoing) {
+          stopSimulationTimer();
+        }
+      }, speed);
+    }
+
+    function stepScriptSimulation() {
+      stopSimulationTimer();
+      currentTape = document.getElementById('tape-input').value.trim();
+      if (!currentTape) return;
+
+      if (pda.status === 'REJECTED') {
+        requestRestart(() => {
+          simIndex = 0;
+          simFailedIndex = -1;
+          resetPDA();
+          resetMapObjects();
+          executeNextTapeSymbol();
+        });
+        return;
+      }
+      if (pda.status === 'ACCEPTED') {
+        simIndex = 0;
+        simFailedIndex = -1;
+        resetPDA();
+        resetMapObjects();
+      }
+      executeNextTapeSymbol();
+    }
+
+    function executeNextTapeSymbol() {
+      if (simIndex >= currentTape.length) {
+        // Fim da fita: verifica se terminou no estado final q6
+        if (pda.status === 'RUNNING') {
+          pda.status = 'REJECTED';
+          updatePDAUI(`<b>SEQUÊNCIA REJEITADA:</b> A fita terminou no estado <b>${pda.state}</b> sem alcançar o objetivo <b>${getCurrentPhase().goalName}</b> em <b>q6</b>.`);
+          playSfx('reject');
+          showRestartConfirmation();
+        }
+        renderTapeVisual();
+        return false;
+      }
+
+      const sym = currentTape[simIndex];
+      const res = stepPDA(sym);
+      if (!res.ok) simFailedIndex = simIndex;
+      else syncPlayerPositionToSymbol(sym);
+      simIndex++;
+      renderTapeVisual();
+
+      if (!res.ok) return false;
+
+      // Se leu o último símbolo da fita e não está em q6, rejeita
+      if (simIndex === currentTape.length && pda.state !== 'q6') {
+        pda.status = 'REJECTED';
+        updatePDAUI(`<b>SEQUÊNCIA REJEITADA:</b> Fim do roteiro atingido em <b>${pda.state}</b> com pilha <b>[${[...pda.stack].reverse().join(' ')}]</b>. É necessário chegar em <b>q6</b>.`);
+        playSfx('reject');
+        showRestartConfirmation();
+        return false;
+      }
+
+      return pda.state !== 'q6';
+    }
+
+    /* =========================================================================
+       5. CENÁRIO INTERATIVO DO JOGO (CANVAS GRID + MOVIMENTAÇÃO WASD)
+       ========================================================================= */
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const BASE_MAPS = [
+      [
+        ['#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#'],
+        ['#', 'P', '.', '*', '.', 's', '.', 'a', '.', 'b', '#'],
+        ['#', '.', '*', '.', '#', '.', '.', '.', '#', '.', '#'],
+        ['#', '.', 'a', '.', 'b', '.', 's', '.', '.', 'c', '#'],
+        ['#', '.', '.', 'a', '.', '.', 'b', '.', '.', '.', '#'],
+        ['#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#']
+      ],
+      [
+        ['#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#'],
+        ['#', 'P', '.', '*', '.', 'a', 'a', 'b', '.', 's', '#'],
+        ['#', '*', '.', '.', '#', '.', '.', '.', '#', '.', '#'],
+        ['#', '.', '.', '.', 'b', '.', 's', '.', '.', 'c', '#'],
+        ['#', '.', '.', '.', '.', '.', '.', '.', '.', '.', '#'],
+        ['#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#']
+      ],
+      [
+        ['#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#'],
+        ['#', 'P', '.', 'a', '.', 's', '.', '*', '.', 'b', '#'],
+        ['#', '.', '.', '.', '#', '.', '.', '*', '#', '.', '#'],
+        ['#', '.', '.', '.', '.', 's', '.', '.', '.', 't', '#'],
+        ['#', '.', '.', '.', '.', '.', '.', '.', '.', '.', '#'],
+        ['#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#']
+      ]
+    ];
+
+    let gridMap = [];
+    let scriptSymbolVisits = {};
+    let player = { x: 1, y: 1, facing: 1, scarfPhase: 0 };
+    let particles = [];
+
+    function resetMapObjects() {
+      gridMap = BASE_MAPS[phaseIndex].map(row => [...row]);
+      player.x = 1;
+      player.y = 1;
+      scriptSymbolVisits = {};
+    }
+
+    function syncPlayerPositionToSymbol(symbol) {
+      const symbolPaths = [
+        {
+          '*': [{ x: 3, y: 1 }, { x: 2, y: 2 }], 'a': [{ x: 7, y: 1 }, { x: 2, y: 3 }, { x: 3, y: 4 }],
+          's': [{ x: 5, y: 1 }, { x: 6, y: 3 }], 'b': [{ x: 9, y: 1 }, { x: 4, y: 3 }, { x: 6, y: 4 }], 'c': [{ x: 9, y: 3 }]
+        },
+        {
+          '*': [{ x: 3, y: 1 }, { x: 1, y: 2 }], 'a': [{ x: 5, y: 1 }, { x: 6, y: 1 }],
+          's': [{ x: 9, y: 1 }, { x: 6, y: 3 }], 'b': [{ x: 7, y: 1 }, { x: 4, y: 3 }], 'c': [{ x: 9, y: 3 }]
+        },
+        {
+          'a': [{ x: 3, y: 1 }], '*': [{ x: 7, y: 1 }, { x: 7, y: 2 }],
+          's': [{ x: 5, y: 1 }, { x: 5, y: 3 }], 'b': [{ x: 9, y: 1 }], 't': [{ x: 9, y: 3 }]
+        }
+      ][phaseIndex];
+      const path = symbolPaths[symbol];
+      if (!path) return;
+
+      const visit = scriptSymbolVisits[symbol] || 0;
+      const destination = path[visit % path.length];
+      scriptSymbolVisits[symbol] = visit + 1;
+      player.x = destination.x;
+      player.y = destination.y;
+      if (gridMap[destination.y][destination.x] === symbol) {
+        gridMap[destination.y][destination.x] = '.';
+      }
+      spawnParticles(player.x, player.y, symbol === 'c' ? '#6ee7b7' : '#f5a673');
+    }
+
+    function spawnParticles(gx, gy, color) {
+      for (let i = 0; i < 14; i++) {
+        particles.push({
+          gx: gx + 0.5,
+          gy: gy + 0.5,
+          vx: (Math.random() - 0.5) * 0.08,
+          vy: (Math.random() - 0.5) * 0.08,
+          life: 1.0,
+          color
+        });
+      }
+    }
+
+    // Movimentação via Teclas WASD / Setas / Botões na tela
+    function handleMoveInput(dx, dy) {
+      stopSimulationTimer();
+      if (dx !== 0) player.facing = dx;
+
+      // Se o jogo já terminou (ACEITA ou REJEITADA), reinicia ao andar
+      if (pda.status === 'REJECTED') {
+        requestRestart(() => {
+          performResetAll();
+          handleMoveInput(dx, dy);
+        });
+        return;
+      }
+      if (pda.status === 'ACCEPTED') {
+        performResetAll();
+      }
+
+      const nx = player.x + dx;
+      const ny = player.y + dy;
+      if (ny < 0 || ny >= gridMap.length || nx < 0 || nx >= gridMap[0].length) return;
+
+      const cell = gridMap[ny][nx];
+      if (cell === '#') {
+        playSfx('step');
+        return;
+      }
+
+      // Se pisar em um símbolo do alfabeto Σ = {*, a, s, b, c}
+      if (['*', 'a', 's', 'b', 'c', 't'].includes(cell) && getCurrentPhase().alphabet.includes(cell)) {
+        // Anexa símbolo na fita em tempo real
+        const inputEl = document.getElementById('tape-input');
+        if (simIndex === 0 && pda.state === 'q0' && inputEl.value === getCurrentPhase().solution) {
+          inputEl.value = ''; // Limpa o exemplo inicial ao começar a explorar manualmente
+        }
+        inputEl.value += cell;
+        currentTape = inputEl.value;
+        simIndex = currentTape.length;
+
+        const result = stepPDA(cell);
+        if (!result.ok) simFailedIndex = simIndex - 1;
+        renderTapeVisual();
+
+        if (result.ok) {
+          player.x = nx;
+          player.y = ny;
+          if (cell !== 'c') {
+            gridMap[ny][nx] = '.'; // Coleta item ou abre passagem
+          }
+          spawnParticles(nx, ny, cell === 'c' ? '#6ee7b7' : '#f5a673');
+        } else {
+          // Bloqueia passagem e gera partículas vermelhas de rejeição
+          spawnParticles(nx, ny, '#fb7185');
+        }
+      } else {
+        // Passo livre na areia
+        player.x = nx;
+        player.y = ny;
+        playSfx('step');
+      }
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (document.activeElement.tagName === 'INPUT') return;
+      const key = e.key.toLowerCase();
+      if (key === 'w' || e.key === 'ArrowUp') { e.preventDefault(); handleMoveInput(0, -1); }
+      if (key === 's' || e.key === 'ArrowDown') { e.preventDefault(); handleMoveInput(0, 1); }
+      if (key === 'a' || e.key === 'ArrowLeft') { e.preventDefault(); handleMoveInput(-1, 0); }
+      if (key === 'd' || e.key === 'ArrowRight') { e.preventDefault(); handleMoveInput(1, 0); }
+    });
+
+    // Redimensionamento responsivo do Canvas
+    function resizeCanvas() {
+      const container = canvas.parentElement;
+      const w = container.clientWidth;
+      const h = Math.max(250, Math.min(340, Math.round(w * 0.48)));
+      canvas.width = w;
+      canvas.height = h;
+    }
+
+    function renderGameLoop() {
+      const w = canvas.width;
+      const h = canvas.height;
+      const cols = gridMap[0].length;
+      const rows = gridMap.length;
+      const tileW = w / cols;
+      const tileH = h / rows;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Fundo gradiente do chão do templo
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
+      bgGrad.addColorStop(0, '#271738');
+      bgGrad.addColorStop(1, '#3d2042');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, w, h);
+
+      // Desenhar células do grid
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const x = c * tileW;
+          const y = r * tileH;
+          const cell = gridMap[r][c];
+
+          // Grade sutil
+          ctx.strokeStyle = 'rgba(255, 240, 229, 0.06)';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x, y, tileW, tileH);
+
+          if (cell === '#') {
+            // Blocos de Ruínas Minimalistas (Silhueta Alto's Odyssey)
+            ctx.fillStyle = '#160d24';
+            ctx.fillRect(x + 2, y + 2, tileW - 4, tileH - 4);
+            ctx.fillStyle = 'rgba(245, 166, 115, 0.08)';
+            ctx.fillRect(x + 2, y + 2, tileW - 4, 4);
+          } else if (cell === '*') {
+            drawCrystal(x + tileW / 2, y + tileH / 2, Math.min(tileW, tileH) * 0.28);
+          } else if (cell === 'a') {
+            drawKey(x + tileW / 2, y + tileH / 2, Math.min(tileW, tileH) * 0.28);
+          } else if (cell === 's') {
+            drawEnergyBarrier(x, y, tileW, tileH);
+          } else if (cell === 'b') {
+            drawStoneArch(x, y, tileW, tileH);
+          } else if (cell === 'c') {
+            drawOraclePortal(x + tileW / 2, y + tileH / 2, Math.min(tileW, tileH) * 0.34);
+          } else if (cell === 't') {
+            drawTreasureChest(x, y, tileW, tileH);
+          }
+        }
+      }
+
+      // Desenhar Viajante (Personagem com cachecol esvoaçante estilo Alto)
+      drawTraveler(
+        (player.x + 0.5) * tileW,
+        (player.y + 0.5) * tileH,
+        Math.min(tileW, tileH) * 0.32
+      );
+
+      // Partículas
+      particles = particles.filter(p => p.life > 0);
+      particles.forEach(p => {
+        p.gx += p.vx;
+        p.gy += p.vy;
+        p.life -= 0.03;
+        ctx.globalAlpha = Math.max(0, p.life);
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.gx * tileW, p.gy * tileH, 3.2, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+
+      requestAnimationFrame(renderGameLoop);
+    }
+
+    function drawCrystal(cx, cy, r) {
+      const pulse = Math.sin(Date.now() * 0.005) * 2;
+      ctx.save();
+      ctx.shadowColor = '#f5a673';
+      ctx.shadowBlur = 12;
+      ctx.fillStyle = '#fbbf24';
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - r - pulse);
+      ctx.lineTo(cx + r * 0.75, cy);
+      ctx.lineTo(cx, cy + r + pulse);
+      ctx.lineTo(cx - r * 0.75, cy);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = '#fff0e5';
+      ctx.font = 'bold 10px JetBrains Mono';
+      ctx.textAlign = 'center';
+      ctx.fillText('*', cx, cy + r + 12);
+      ctx.restore();
+    }
+
+    function drawKey(cx, cy, r) {
+      ctx.save();
+      ctx.shadowColor = '#22d3ee';
+      ctx.shadowBlur = 12;
+      ctx.strokeStyle = '#67e8f9';
+      ctx.lineWidth = 2.6;
+      ctx.beginPath();
+      ctx.arc(cx - r * 0.35, cy, r * 0.42, 0, Math.PI * 2);
+      ctx.moveTo(cx + r * 0.05, cy);
+      ctx.lineTo(cx + r * 0.85, cy);
+      ctx.lineTo(cx + r * 0.85, cy + r * 0.35);
+      ctx.stroke();
+
+      ctx.fillStyle = '#67e8f9';
+      ctx.font = 'bold 10px JetBrains Mono';
+      ctx.textAlign = 'center';
+      ctx.fillText('a', cx, cy + r + 12);
+      ctx.restore();
+    }
+
+    function drawEnergyBarrier(x, y, w, h) {
+      drawMapEmoji('🧪', 's (-A)', x + w / 2, y + h / 2, Math.min(w, h) * 0.5, '#fb7185');
+    }
+
+    function drawStoneArch(x, y, w, h) {
+      drawMapEmoji('🌀', 'b (-X)', x + w / 2, y + h / 2, Math.min(w, h) * 0.5, '#c084fc');
+    }
+
+    function drawOraclePortal(cx, cy, r) {
+      const rot = Date.now() * 0.0025;
+      ctx.save();
+      ctx.shadowColor = '#34d399';
+      ctx.shadowBlur = 16;
+      ctx.strokeStyle = '#6ee7b7';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(cx, cy - 3, r, rot, rot + Math.PI * 1.5);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(cx, cy - 3, r * 0.62, -rot, -rot + Math.PI * 1.5);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#6ee7b7';
+      ctx.font = 'bold 10px JetBrains Mono';
+      ctx.textAlign = 'center';
+      ctx.fillText('c (Z0)', cx, cy + r + 13);
+      ctx.restore();
+    }
+
+    function drawMapEmoji(emoji, label, cx, cy, size, glow) {
+      ctx.save();
+      ctx.globalAlpha = 1;
+      ctx.shadowColor = glow;
+      ctx.shadowBlur = 10;
+      ctx.font = `${Math.max(22, size * 1.45)}px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(emoji, cx, cy - 3);
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#fff0e5';
+      ctx.font = 'bold 10px JetBrains Mono';
+      ctx.fillText(label, cx, cy + size * 0.75);
+      ctx.restore();
+    }
+
+    function drawTreasureChest(x, y, w, h) {
+      const cx = x + w / 2;
+      const top = y + h * 0.25;
+      const chestWidth = w * 0.48;
+      const chestHeight = h * 0.34;
+      ctx.save();
+      ctx.shadowColor = '#fbbf24';
+      ctx.shadowBlur = 12;
+      ctx.fillStyle = '#92400e';
+      ctx.beginPath();
+      ctx.roundRect(cx - chestWidth / 2, top + chestHeight * 0.42, chestWidth, chestHeight * 0.72, 4);
+      ctx.fill();
+      ctx.fillStyle = '#b45309';
+      ctx.beginPath();
+      ctx.roundRect(cx - chestWidth / 2, top, chestWidth, chestHeight * 0.55, 7);
+      ctx.fill();
+      ctx.fillStyle = '#fbbf24';
+      ctx.fillRect(cx - 2, top + chestHeight * 0.48, 4, chestHeight * 0.64);
+      ctx.beginPath();
+      ctx.arc(cx, top + chestHeight * 0.7, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#fff0e5';
+      ctx.font = 'bold 10px JetBrains Mono';
+      ctx.textAlign = 'center';
+      ctx.fillText('t • TESOURO', cx, y + h * 0.82);
+      ctx.restore();
+    }
+
+    function drawTraveler(cx, cy, r) {
+      const bob = Math.sin(Date.now() * 0.008) * 2;
+      ctx.save();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#fff0e5';
+      ctx.strokeStyle = '#f5a673';
+      ctx.lineWidth = 2;
+      ctx.shadowColor = '#f5a673';
+      ctx.shadowBlur = 14;
+      ctx.beginPath();
+      ctx.arc(cx, cy + bob, r * 1.12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.font = `${Math.max(24, r * 2.15)}px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🧙', cx, cy + bob);
+      ctx.restore();
+    }
+
+    /* =========================================================================
+       6. UTILITÁRIOS DE MODAL, ESTRELAS DE FUNDO E INICIALIZAÇÃO
+       ========================================================================= */
+    function generateStars() {
+      const container = document.getElementById('stars-layer');
+      for (let i = 0; i < 55; i++) {
+        const star = document.createElement('div');
+        const size = Math.random() * 2.5 + 1;
+        star.style.position = 'absolute';
+        star.style.width = `${size}px`;
+        star.style.height = `${size}px`;
+        star.style.borderRadius = '50%';
+        star.style.backgroundColor = '#fff0e5';
+        star.style.top = `${Math.random() * 52}%`;
+        star.style.left = `${Math.random() * 100}%`;
+        star.style.animation = `twinkle ${2.5 + Math.random() * 4}s infinite ease-in-out ${Math.random() * 3}s`;
+        container.appendChild(star);
+      }
+    }
+
+    function openModal(id) {
+      const m = document.getElementById(id);
+      m.classList.remove('hidden');
+      m.classList.add('flex');
+    }
+
+    function closeModal(id) {
+      const m = document.getElementById(id);
+      m.classList.add('hidden');
+      m.classList.remove('flex');
+    }
+
+    let pendingRestartAction = null;
+
+    function showRestartConfirmation() {
+      requestRestart(performResetAll);
+    }
+
+    function requestRestart(action) {
+      pendingRestartAction = action;
+      const modal = document.getElementById('modal-restart');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function dismissRestartConfirmation() {
+      const modal = document.getElementById('modal-restart');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      pendingRestartAction = null;
+    }
+
+    function confirmRestart() {
+      const action = pendingRestartAction;
+      dismissRestartConfirmation();
+      if (action) action();
+    }
+
+    function showVictoryModal() {
+      const modal = document.getElementById('modal-victory');
+      const finalPhase = phaseIndex === PHASES.length - 1;
+      document.getElementById('victory-title').textContent = finalPhase ? 'Vitória final! O tesouro é seu.' : `Fase ${phaseIndex + 1} concluída!`;
+      document.getElementById('victory-copy').textContent = finalPhase
+        ? 'Você completou as três fases e abriu o baú do Oráculo. Quer jogar novamente desde o início?'
+        : `${getCurrentPhase().goalName} alcançado. Prepare-se para o próximo desafio!`;
+      document.getElementById('victory-next').textContent = finalPhase ? 'Jogar novamente' : 'Próxima fase';
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function dismissVictory() {
+      const modal = document.getElementById('modal-victory');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function advancePhaseOrReplay() {
+      dismissVictory();
+      phaseIndex = phaseIndex === PHASES.length - 1 ? 0 : phaseIndex + 1;
+      stopSimulationTimer();
+      simIndex = 0;
+      simFailedIndex = -1;
+      currentTape = '';
+      updatePhaseUI();
+      resetPDA();
+      resetMapObjects();
+      currentTape = document.getElementById('tape-input').value;
+      renderTapeVisual();
+    }
+
+    function resetAll() {
+      if (pda.status === 'REJECTED') {
+        requestRestart(performResetAll);
+        return;
+      }
+      performResetAll();
+    }
+
+    function performResetAll() {
+      stopSimulationTimer();
+      simIndex = 0;
+      simFailedIndex = -1;
+      document.getElementById('tape-input').value = '';
+      currentTape = '';
+      resetPDA();
+      resetMapObjects();
+      renderTapeVisual();
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+
+    window.onload = function () {
+      generateStars();
+      updatePhaseUI();
+      resetMapObjects();
+      resetPDA();
+      renderTapeVisual();
+      resizeCanvas();
+      renderGameLoop();
+    };
+  </script>
+</body>
+</html>
